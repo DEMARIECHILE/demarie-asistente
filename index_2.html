@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asistente deMarie</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fdf6f9; height: 100vh; display: flex; flex-direction: column; }
+  #header { background: white; border-bottom: 1px solid #f0d6e4; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+  .logo { width: 40px; height: 40px; border-radius: 50%; background: #d4537e; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; flex-shrink: 0; }
+  .header-info .name { font-weight: 600; font-size: 16px; color: #2c2c2a; }
+  .header-info .status { font-size: 12px; color: #d4537e; }
+  #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { display: flex; gap: 10px; align-items: flex-end; }
+  .msg.user { flex-direction: row-reverse; }
+  .bubble { max-width: 78%; padding: 11px 16px; border-radius: 20px; font-size: 14px; line-height: 1.55; }
+  .msg.bot .bubble { background: white; color: #2c2c2a; border: 1px solid #f0d6e4; border-bottom-left-radius: 4px; }
+  .msg.user .bubble { background: #d4537e; color: white; border-bottom-right-radius: 4px; }
+  .av { width: 30px; height: 30px; border-radius: 50%; background: #f4c0d1; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #993556; font-weight: 600; flex-shrink: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 4px 40px; }
+  .chip { background: white; border: 1px solid #d4537e; color: #d4537e; border-radius: 20px; padding: 7px 15px; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+  .chip:hover { background: #fbeaf0; }
+  #footer { border-top: 1px solid #f0d6e4; padding: 14px 16px; display: flex; gap: 10px; background: white; }
+  #input { flex: 1; border: 1px solid #f0d6e4; border-radius: 24px; padding: 10px 18px; font-size: 14px; background: #fdf6f9; color: #2c2c2a; outline: none; font-family: inherit; }
+  #input:focus { border-color: #d4537e; }
+  #send { background: #d4537e; color: white; border: none; border-radius: 50%; width: 42px; height: 42px; cursor: pointer; font-size: 20px; flex-shrink: 0; transition: background 0.15s; display: flex; align-items: center; justify-content: center; }
+  #send:hover { background: #993556; }
+  .typing { display: flex; gap: 5px; padding: 11px 16px; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: #d4537e; animation: bounce 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-7px)} }
+</style>
+</head>
+<body>
+<div id="header">
+  <div class="logo">dM</div>
+  <div class="header-info">
+    <div class="name">Asistente deMarie</div>
+    <div class="status">● Responde según el manual interno</div>
+  </div>
+</div>
+<div id="chat">
+  <div class="msg bot">
+    <div class="av">dM</div>
+    <div class="bubble">¡Hola! Soy la asistente de deMarie 🌸 Pregúntame cualquier cosa sobre ventas, cambios, productos, cierre de caja o políticas.</div>
+  </div>
+  <div class="chips" id="chips">
+    <span class="chip" onclick="sendChip(this)">¿Cómo hago un cambio?</span>
+    <span class="chip" onclick="sendChip(this)">¿Cómo cierro caja?</span>
+    <span class="chip" onclick="sendChip(this)">¿Qué hago con una gift card?</span>
+    <span class="chip" onclick="sendChip(this)">Tallas de bralettes</span>
+  </div>
+</div>
+<div id="footer">
+  <input id="input" type="text" placeholder="Escribe tu pregunta..." onkeydown="if(event.key==='Enter')enviar()" />
+  <button id="send" onclick="enviar()">›</button>
+</div>
+<script>
+const MANUAL = `MANUAL DEMARIE BRAS & MORE
+
+VENTAS EN BSALE:
+- Ir a pestaña POS
+- Marcar productos con pistola. Si no marca, escribir SKU (nunca el nombre)
+- Métodos de pago:
+  * Efectivo: ingresar total recibido, agregar forma de pago (Bsale calcula vuelto)
+  * Tarjeta: seleccionar crédito/débito, ingresar número de comprobante (número de operación en el voucher, justo bajo el monto)
+  * Nota de crédito: ingresar número de NC, agregar forma de pago, cobrar diferencia
+- Ofrecer boleta al correo. Siempre pedir nombre y correo
+- Confirmar pago SOLO cuando Transbank diga "transacción aprobada"
+- Entregar boleta + ticket de cambio + políticas de cambio + voucher si se solicitó
+- Si es regalo: incluir ticket de cambio en la bolsa, borrar precio con corrector, poner sticker para cerrar bolsa
+
+VENTAS SIN INTERNET:
+1. Anotar en Excel: SKU, modelo, color, talla, total, medio de pago, número de comprobante
+2. Pedir: nombre, apellido, correo
+3. Indicar que la boleta llegará durante el día
+4. Cuando vuelva el sistema, ingresar todas las boletas y enviar por correo
+
+AL FINALIZAR VENTA: indicar "Cambios 30 días con boleta o foto de boleta. Producto en perfectas condiciones"
+
+CAMBIOS:
+1. Ir a pestaña "Devolución" → "Hacer una devolución"
+2. Buscar número de boleta y marcar "venta en otra sucursal"
+3. Seleccionar productos a cambiar
+4. Registrar cliente (tipo: "cliente"): nombre, apellido, RUT, dirección, email
+5. Presionar "guardar" y luego "devolver"
+6. Seleccionar "Tipo de devolución: Forma de pago en nueva venta" → Confirmar devolución
+7. Ir a pestaña ventas y hacer boleta nueva. En pago, primero ingresar la nota de crédito, luego cobrar diferencia si existe
+8. Corchetear: boleta antigua + NC + nueva boleta (en ese orden)
+
+GIFT CARD - VENTA:
+- Monto mínimo ideal: $15.000
+- Código: NOMBREAPELLIDO de quien RECIBE (ej: CAMILAMARTINEZ)
+- Enviar a coti@demarie.cl: monto, código gift card, correo del comprador
+- Decir al cliente que queda activa durante el día
+- En gift card física escribir con sharpie negro: código, monto, vencimiento (2 meses)
+- Pegar con doble contacto en tarjeta cuadrada
+- NO se genera boleta en Bsale
+
+GIFT CARD - CANJE:
+- Cliente debe usar TODO el monto (si no, pierde el resto)
+- Si sobrepasa, cobrar diferencia
+- Preguntar por grupo a Vale o Coti si la gift card está activa
+- En Bsale: registrar como pago en efectivo
+- En Excel de cierre anotar: Gift Card + monto + nº boleta
+- Enviar a coti@demarie.cl (con copia a valentina@demarie.cl): nombre, código GC, monto, nº boleta
+
+FLAPP:
+- Revisar constantemente la página
+- Revisar pedido y prepararlo, imprimir etiqueta y corchetear en bolsa
+- Pedido Express: solicitar repartidor con nombre + número de pedido
+- Retiro en tienda: marcar como "entregado" en Flapp, pedir nombre, apellido y RUN
+- Si repartidor devuelve pedido: escribir en grupo etiquetando a Wendy y Vale con número de pedido
+
+VENTAS WEB:
+- Envío a domicilio o retiro en Casa Costanera
+- Santiago: 3-5 días hábiles. Regiones: hasta 7 días hábiles
+- Reclamos y dudas de pedidos online: quiero@demarie.cl
+
+CIERRE DIARIO:
+En Bsale: pestaña "Cierre de caja" → "Cerrar caja" → imprimir cierre
+En Excel "Cierres": anotar efectivo real al abrir y efectivo Bsale al cerrar. Anotar comentarios, gift cards, cruces.
+En Transbank:
+1. Presionar 0
+2. "Comercio / Funciones de comercio"
+3. Clave supervisora: 123456 + Enter (botón verde)
+4. Seleccionar "Cierre"
+5. Presionar "Sí" para imprimir detalle
+6. Cuando pida "Confirmar" → presionar verde inmediatamente
+- Si no se imprime detalle + cuadro final, el cierre NO está completo
+- Corchetear cierre Bsale + cierre Transbank + todos los vouchers del día
+- Guardar en cajón. A fin de mes entregar a Wendy con las Repo
+
+POLÍTICA DE CAMBIOS:
+- NO se hacen devoluciones, solo cambios
+- Plazo: 30 días con boleta o foto de boleta
+- Prenda en perfecto estado con etiqueta
+- Body y calzones NO se cambian (higiene)
+- Prendas sucias o con manchas NO se cambian
+- EXCEPCIÓN: pijamas comprados por web se pueden DEVOLVER dentro de 10 días
+  * Verificar compra web en Shopify y que sea dentro de 10 días
+  * Generar nota de crédito
+  * Enviar a coti@demarie.cl: nº pedido, nombre, apellido, correo, producto, razón, datos para transferencia
+
+INVENTARIO: todos los lunes. Diferencias: avisar a Wendy.
+
+TIENDA: mantener a tope, colgar por talla S a XL, colgadores como "?", prendas con precio y alarma.
+
+PROBADOR: 1 persona, máximo 4 bras. No sacar esponjitas. Blancas NO se prueban. Toallitas desmaquillantes para desodorante.
+
+ORDEN Y LIMPIEZA: bras por modelo en cajones estirados. Barrer antes de abrir y al cerrar. Limpiar muebles y barras.
+
+COMPRAS EQUIPO: registrar en Excel "compras team" en drive. Completar: sucursal, nombre, prendas, fecha, monto, nº boleta.
+
+PERMISOS Y VACACIONES: correo a valentina@demarie.cl con mínimo una semana de anticipación.
+
+PIJAMAS:
+- Hechos a mano en Perú. Telas: rayón/viscosa o algodón
+- Puede achicarse hasta 2cm con primer lavado. Lavar a mano, agua fría, NO secadora
+- Modelos: Kendall (short manga corta), Madison (pantalón manga corta), Aisha (camisa manga corta), Aysha (camisa manga larga), Molly (pantalón manga larga)
+- NO sacar de bolsas. Solo colgar 1 de cada modelo PLANCHADO. Al vender sacar del cajón.
+- Entregar sin bolsa, en bolsa rosada grande. Regalo: poner sticker.
+
+BRALETTES:
+- Esponjas removibles
+- Tallas: XS/S=32A-34B | S=32B-34B | M/L=32D-38B | M=32D-36B | L=34D-38B | Única=Copas A-B-C
+- Talla hermana: aumenta tira reduce copa (34C→36B) O reduce tira aumenta copa (34C→32D)
+- Cuidados: lavar a mano agua fría, secar extendido, no planchar`;
+
+const history = [];
+
+function addMsg(role, text) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  const av = document.createElement('div'); av.className = 'av';
+  av.textContent = role === 'bot' ? 'dM' : 'Tú';
+  const bub = document.createElement('div'); bub.className = 'bubble';
+  bub.innerHTML = text.replace(/\n/g, '<br>');
+  if (role === 'bot') { div.appendChild(av); div.appendChild(bub); }
+  else { div.appendChild(bub); div.appendChild(av); }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div'); div.className = 'msg bot'; div.id = 'typing-row';
+  const av = document.createElement('div'); av.className = 'av'; av.textContent = 'dM';
+  const bub = document.createElement('div'); bub.className = 'bubble';
+  bub.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  div.appendChild(av); div.appendChild(bub);
+  chat.appendChild(div); chat.scrollTop = chat.scrollHeight;
+}
+
+function removeTyping() { const t = document.getElementById('typing-row'); if (t) t.remove(); }
+
+async function ask(question) {
+  document.getElementById('chips').style.display = 'none';
+  addMsg('user', question);
+  history.push({ role: 'user', content: question });
+  showTyping();
+  const messages = history.map(m => ({ role: m.role === 'bot' ? 'assistant' : 'user', content: m.content }));
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, manual: MANUAL })
+    });
+    const data = await res.json();
+    removeTyping();
+    const reply = data.reply || 'Lo siento, hubo un error. Intenta de nuevo.';
+    addMsg('bot', reply);
+    history.push({ role: 'bot', content: reply });
+  } catch(e) {
+    removeTyping();
+    addMsg('bot', 'Error de conexión. Intenta de nuevo.');
+  }
+}
+
+function enviar() {
+  const inp = document.getElementById('input');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  inp.value = '';
+  ask(txt);
+}
+
+function sendChip(el) { ask(el.textContent); }
+</script>
+</body>
+</html>
